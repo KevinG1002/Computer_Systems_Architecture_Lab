@@ -8,6 +8,7 @@ Student ID: 9942991
 #include <string.h>
 #include <unistd.h>
 
+
 int main() {
 
 	
@@ -21,7 +22,8 @@ int main() {
 	//Useful variables - pretty self-explanatory in terms of the purpose they serve. 
 	int Cache_Line_ID;
 	int Tag_Bits;
-	float Percentage_Hits;
+	float Percentage_Hits, Percentage_Write_Hits, Percentage_Read_Hits;
+	int short list_of_masks [7] = {0x007F, 0x007E, 0x007C, 0x0078, 0x0070, 0x0060, 0x0040};
 	char Read_OR_Write;
 	
 
@@ -62,8 +64,9 @@ int main() {
 					}
 
 					//Defining Cache Line ID and Tag Bits. 
-					Cache_Line_ID = Memory_Address % Cache_Initial_Size; //128 bits = 0x007F
-
+					//Cache_Line_ID = Memory_Address % Cache_Initial_Size; //128 bits = 0x007F  then 64 bits then 32 bits
+					Cache_Line_ID = Memory_Address & list_of_masks[i-1];
+					Cache_Line_ID = Cache_Line_ID >> (i-1);
 					//Tag Bit identification method never changes. 
 					Tag_Bits = Memory_Address & 0xFF80;
 					Tag_Bits = Tag_Bits >> 7;
@@ -103,7 +106,8 @@ int main() {
 			// Print statements hereunder show the performance and the metrics for each cache memory configuration. 
 			
 			Percentage_Hits = ((float)Cache_Read_Hit+Cache_Write_Hit)/(Read_Count+Write_Count);
-
+			Percentage_Write_Hits = ((float)Cache_Write_Hit)/(Write_Count);
+			Percentage_Read_Hits = ((float)Cache_Read_Hit)/(Read_Count);
 			printf("Total number of read accesses to the external memory: %d \n", Read_Count);
 			printf("Total number of write accesses to the external memory: %d \n", Write_Count);
 			printf("\n");
@@ -115,6 +119,8 @@ int main() {
 			printf("\n");
 
 			printf("Cache Memory Hit-rate: %f \n", Percentage_Hits*100);
+			printf("Cache Memory Write Hit-rate: %f \n", Percentage_Write_Hits*100);
+			printf("Cache Memory Read Hit-rate: %f \n", Percentage_Read_Hits*100);
 
 			printf("\n");
 			
