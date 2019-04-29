@@ -9,10 +9,11 @@ Student ID: 9942991
 #include <unistd.h>
 
 
+
 int main() {
 
 	
-	int Memory_Address;
+	
 
 	/*Initialise list of file-strings. This will be used to iterate through the different trace files at hand, 
 	and execute the cache simulation at different block sizes. 
@@ -20,37 +21,47 @@ int main() {
 	const char *file_names[2] = {"cross_correlation_trace_036.trc", "bubble_sort_trace_036.trc"};
 
 	//Useful variables - pretty self-explanatory in terms of the purpose they serve. 
+
 	int Cache_Line_ID;
 	int Tag_Bits;
-	float Percentage_Hits, Percentage_Write_Hits, Percentage_Read_Hits;
 	int short list_of_masks [7] = {0x007F, 0x007E, 0x007C, 0x0078, 0x0070, 0x0060, 0x0040};
 	char Read_OR_Write;
 	
+
 
 	//Start of Simulation: For loop; 2 iterations for 2 trace files. 
 	for (int j=0; j<2; j++){
 		printf("File at hand is: %s \n", file_names[j]);
 		int Cache_Initial_Size = 256;
+		float Percentage_Hits, Percentage_Write_Hits, Percentage_Read_Hits = 0;
 		char s, n;
 		
 		//7 iterations for the cache performance simulations on the 7 possible configurations. [128, 64, 32, 16, 8, 4, 2]
 		for (int i=1; i<8; i++){
 			
+			int Memory_Address;	
+
 			Cache_Initial_Size = Cache_Initial_Size/2; //Used to define cache size for each iterations
 			//Opening of target trace file defined by for-loop above. 
 			FILE *in_file = fopen(file_names[j], "r");
 			
 			int Read_Count = 0;
 			int Write_Count = 0;
-			
 			int Cache_Read_Hit=0;
 			int Cache_Read_Miss=0;
 			int Cache_Write_Hit=0;
 			int Cache_Write_Miss=0;
 				
-			//Initialisation of Cache Memory. Each block has 16 bits (unsigned int short)
+			//Initialisation of Cache Memory and Validation Bits array. Each block has 16 bits (unsigned int short)
 			unsigned int short Cache_Array[Cache_Initial_Size];
-			
+			int valid_bits[Cache_Initial_Size];
+
+			for (int k=0; k<Cache_Initial_Size; k++){
+				Cache_Array[k] = 0;
+				valid_bits[k] = 0;
+			}
+
+
 			printf("Number of Cache Lines: %d \n", Cache_Initial_Size);
 				
 				while(fscanf(in_file, "%c%c%x%c", &Read_OR_Write, &s, &Memory_Address, &n) != EOF){
@@ -64,7 +75,6 @@ int main() {
 					}
 
 					//Defining Cache Line ID and Tag Bits. 
-					//Cache_Line_ID = Memory_Address % Cache_Initial_Size; //128 bits = 0x007F  then 64 bits then 32 bits
 					Cache_Line_ID = Memory_Address & list_of_masks[i-1];
 					Cache_Line_ID = Cache_Line_ID >> (i-1);
 					//Tag Bit identification method never changes. 
@@ -72,28 +82,30 @@ int main() {
 					Tag_Bits = Tag_Bits >> 7;
 
 					//Cache Memory Logic when Empty
-					if (Cache_Array[Cache_Line_ID] == 0 && Read_OR_Write == 'W') {
+					if (valid_bits[Cache_Line_ID] == 0 && Read_OR_Write == 'W') {
 						Cache_Array[Cache_Line_ID] = Tag_Bits;
 						Cache_Write_Miss++;
+						valid_bits[Cache_Line_ID] = 1;
 					}
-					else if (Cache_Array[Cache_Line_ID] == 0 && Read_OR_Write == 'R') {
+					else if (valid_bits[Cache_Line_ID] == 0 && Read_OR_Write == 'R') {
 						Cache_Array[Cache_Line_ID] = Tag_Bits;
 						Cache_Read_Miss++;
+						valid_bits[Cache_Line_ID] = 1;
 					}
 
 					//Cache Memory Logic when non-empty. 
-					else if (Cache_Array[Cache_Line_ID] !=0 && Read_OR_Write == 'W' && Cache_Array[Cache_Line_ID] == Tag_Bits){
+					else if (valid_bits[Cache_Line_ID] !=0 && Read_OR_Write == 'W' && Cache_Array[Cache_Line_ID] == Tag_Bits){
 						Cache_Write_Hit++;
 					}
-					else if (Cache_Array[Cache_Line_ID] !=0 && Read_OR_Write == 'W' && Cache_Array[Cache_Line_ID] != Tag_Bits){
+					else if (valid_bits[Cache_Line_ID] !=0 && Read_OR_Write == 'W' && Cache_Array[Cache_Line_ID] != Tag_Bits){
 						Cache_Array[Cache_Line_ID] = Tag_Bits;
 						Cache_Write_Miss++;
 					}
 
-					else if (Cache_Array[Cache_Line_ID] !=0 && Read_OR_Write == 'R' && Cache_Array[Cache_Line_ID] == Tag_Bits){
+					else if (valid_bits[Cache_Line_ID] !=0 && Read_OR_Write == 'R' && Cache_Array[Cache_Line_ID] == Tag_Bits){
 						Cache_Read_Hit++;
 					}
-					else if (Cache_Array[Cache_Line_ID] !=0 && Read_OR_Write == 'R' && Cache_Array[Cache_Line_ID] != Tag_Bits){
+					else if (valid_bits[Cache_Line_ID] !=0 && Read_OR_Write == 'R' && Cache_Array[Cache_Line_ID] != Tag_Bits){
 						Cache_Array[Cache_Line_ID] = Tag_Bits;
 						Cache_Read_Miss++;
 					}
@@ -108,6 +120,7 @@ int main() {
 			Percentage_Hits = ((float)Cache_Read_Hit+Cache_Write_Hit)/(Read_Count+Write_Count);
 			Percentage_Write_Hits = ((float)Cache_Write_Hit)/(Write_Count);
 			Percentage_Read_Hits = ((float)Cache_Read_Hit)/(Read_Count);
+
 			printf("Total number of read accesses to the external memory: %d \n", Read_Count);
 			printf("Total number of write accesses to the external memory: %d \n", Write_Count);
 			printf("\n");
